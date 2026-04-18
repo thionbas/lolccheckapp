@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Armaturenprüfung</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #080B10;
+      --surface:   #0F1318;
+      --surface2:  #161B24;
+      --border:    #1F2739;
+      --border2:   #2A3347;
+      --text:      #E2E8F0;
+      --muted:     #64748B;
+      --amber:     #F59E0B;
+      --amber2:    #FBBF24;
+      --green:     #22C55E;
+      --red:       #EF4444;
+      --blue:      #3B82F6;
+      --cyan:      #06B6D4;
+      --purple:    #A855F7;
+      --orange:    #FB923C;
+      --radius:    10px;
+      --shadow:    0 4px 24px rgba(0,0,0,.5);
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; }
+
+    /* ─── LAYOUT ─── */
+    #app { min-height: 100vh; display: flex; flex-direction: column; }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-icon {
+      width: 30px; height: 30px;
+      background: var(--amber);
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      font-size: 16px;
+    }
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+
+    main { flex: 1; padding: 28px 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+    /* ─── BUTTONS ─── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all .15s;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .btn-primary { background: var(--amber); color: #000; border-color: var(--amber); }
+    .btn-primary:hover { background: var(--amber2); }
+    .btn-ghost { background: transparent; color: var(--muted); border-color: var(--border); }
+    .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+    .btn-danger { background: transparent; color: var(--red); border-color: var(--red); }
+    .btn-danger:hover { background: rgba(239,68,68,.1); }
+    .btn-sm { padding: 5px 12px; font-size: 12.5px; }
+    .btn:disabled { opacity: .4; pointer-events: none; }
+
+    /* ─── CARDS GRID ─── */
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .toolbar-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.25rem; flex: 1; }
+    .filter-group { display: flex; gap: 6px; }
+    .filter-btn {
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+      font-family: inherit;
+    }
+    .filter-btn.active { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+
+    .search-wrap { position: relative; }
+    .search-wrap input {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 7px 12px 7px 34px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      width: 200px;
+    }
+    .search-wrap input::placeholder { color: var(--muted); }
+    .search-wrap input:focus { outline: none; border-color: var(--amber); }
+    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    /* ─── VALVE CARD ─── */
+    .valve-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      cursor: pointer;
+      transition: all .2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .valve-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+      border-radius: 12px 0 0 12px;
+      background: var(--border2);
+      transition: background .2s;
+    }
+    .valve-card.status-ok::before { background: var(--green); }
+    .valve-card.status-nok::before { background: var(--red); }
+    .valve-card.status-pending::before { background: var(--amber); }
+    .valve-card:hover { border-color: var(--border2); transform: translateY(-2px); box-shadow: var(--shadow); }
+
+    .card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+    .valve-nummer {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: .05em;
+    }
+    .tag-LO { color: var(--blue); }
+    .tag-LC { color: var(--orange); }
+    .tag-NO { color: var(--cyan); }
+    .tag-NC { color: var(--purple); }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .badge-ok { background: rgba(34,197,94,.15); color: var(--green); }
+    .badge-nok { background: rgba(239,68,68,.15); color: var(--red); }
+    .badge-pending { background: rgba(245,158,11,.15); color: var(--amber); }
+    .badge-none { background: var(--surface2); color: var(--muted); }
+
+    .card-meta { display: flex; flex-direction: column; gap: 4px; }
+    .card-meta-row { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+    .card-meta-row svg { flex-shrink: 0; }
+    .card-bezeichnung { font-weight: 600; color: var(--text); font-size: 13.5px; margin-bottom: 8px; }
+
+    .card-footer { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .card-pruefer { font-size: 11.5px; color: var(--muted); }
+    .card-time { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+    .soll-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+    .soll-offen { background: rgba(6,182,212,.1); color: var(--cyan); }
+    .soll-geschlossen { background: rgba(168,85,247,.1); color: var(--purple); }
+
+    /* ─── EMPTY STATE ─── */
+    .empty-state {
+      grid-column: 1/-1;
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--muted);
+    }
+    .empty-state svg { margin-bottom: 16px; opacity: .3; }
+    .empty-state h3 { font-family: 'Syne', sans-serif; font-size: 1.1rem; color: var(--text); margin-bottom: 6px; }
+
+    /* ─── MODAL OVERLAY ─── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.7);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: fadeIn .15s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+    .overlay.hidden { display: none; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: slideUp .2s ease;
+      box-shadow: 0 20px 60px rgba(0,0,0,.6);
+    }
+    .modal-lg { max-width: 680px; }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+
+    .modal-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      z-index: 1;
+    }
+    .modal-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.05rem; }
+    .modal-close {
+      width: 30px; height: 30px;
+      border-radius: 6px;
+      border: none;
+      background: var(--surface2);
+      color: var(--muted);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      transition: all .15s;
+    }
+    .modal-close:hover { background: var(--border); color: var(--text); }
+    .modal-body { padding: 20px 24px; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+    /* ─── FORM ELEMENTS ─── */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1/-1; }
+    .form-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .form-control {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 12px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color .15s;
+      width: 100%;
+    }
+    .form-control:focus { outline: none; border-color: var(--amber); }
+    .form-control::placeholder { color: var(--muted); }
+    select.form-control { cursor: pointer; }
+    select.form-control option { background: var(--surface2); }
+    textarea.form-control { resize: vertical; min-height: 80px; }
+
+    .nummer-group { display: flex; gap: 8px; }
+    .prefix-select { width: 100px; flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+    .suffix-input { flex: 1; font-family: 'JetBrains Mono', monospace; }
+
+    /* ─── SIGNATURE PAD ─── */
+    .sig-wrap {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      position: relative;
+      background: #fff;
+    }
+    #sig-canvas { display: block; width: 100%; touch-action: none; cursor: crosshair; }
+    .sig-label-float {
+      position: absolute;
+      top: 8px; left: 12px;
+      font-size: 11px;
+      color: #aaa;
+      pointer-events: none;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .sig-actions { display: flex; gap: 6px; margin-top: 6px; }
+
+    /* ─── INSPECTION RESULT ─── */
+    .result-banner {
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+    .result-ok { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: var(--green); }
+    .result-nok { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: var(--red); }
+    .result-icon { font-size: 22px; }
+
+    /* ─── HISTORY ─── */
+    .history-list { display: flex; flex-direction: column; gap: 10px; }
+    .history-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .hist-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+    .hist-ok { background: var(--green); }
+    .hist-nok { background: var(--red); }
+    .hist-info { flex: 1; }
+    .hist-pruefer { font-weight: 600; font-size: 13px; }
+    .hist-time { font-size: 11.5px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+    .hist-detail { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .hist-sig { width: 80px; height: 36px; border-radius: 4px; object-fit: contain; background: #fff; }
+    .hist-photo { width: 60px; height: 60px; border-radius: 6px; object-fit: cover; cursor: pointer; }
+
+    /* ─── SETUP MODAL ─── */
+    .setup-intro {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .setup-intro strong { color: var(--text); }
+    .sql-block {
+      background: #0A0C10;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #94A3B8;
+      white-space: pre;
+      overflow-x: auto;
+      margin-top: 10px;
+      line-height: 1.6;
+    }
+    .sql-keyword { color: #60A5FA; }
+    .sql-type { color: #34D399; }
+    .sql-string { color: #FCD34D; }
+
+    /* ─── PHOTO PREVIEW ─── */
+    .photo-preview-wrap { position: relative; margin-top: 8px; }
+    .photo-preview { width: 100%; max-height: 200px; object-fit: cover; border-radius: var(--radius); display: none; }
+    .photo-preview.visible { display: block; }
+    .photo-remove {
+      position: absolute;
+      top: 6px; right: 6px;
+      background: rgba(0,0,0,.7);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 24px; height: 24px;
+      cursor: pointer;
+      font-size: 14px;
+      display: none;
+      place-items: center;
+    }
+    .photo-remove.visible { display: grid; }
+
+    /* ─── LOADING / TOAST ─── */
+    .loader {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--amber);
+      z-index: 1000;
+      transform-origin: left;
+      animation: loadBar 1.2s ease-in-out infinite;
+    }
+    @keyframes loadBar { 0%{transform:scaleX(0)} 50%{transform:scaleX(.7)} 100%{transform:scaleX(1)} }
+    .loader.hidden { display: none; }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 18px;
+      font-size: 13.5px;
+      font-weight: 500;
+      z-index: 9999;
+      animation: toastIn .2s ease;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 320px;
+    }
+    .toast-ok { border-color: rgba(34,197,94,.4); }
+    .toast-err { border-color: rgba(239,68,68,.4); }
+    @keyframes toastIn { from { transform: translateY(10px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+
+    /* ─── DETAIL VIEW ─── */
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .detail-item { background: var(--surface2); border-radius: var(--radius); padding: 12px; }
+    .detail-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+    .detail-value { font-size: 14px; font-weight: 500; }
+    .detail-value.mono { font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 700; }
+
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+    .tab-btn {
+      padding: 8px 16px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all .15s;
+      font-family: inherit;
+    }
+    .tab-btn.active { color: var(--amber); border-bottom-color: var(--amber); }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* mobile adjustments */
+    @media (max-width: 540px) {
+      main { padding: 16px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .cards-grid { grid-template-columns: 1fr; }
+      .search-wrap input { width: 140px; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="loader" class="loader hidden"></div>
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⚙</div>
+      <span>Armaturenprüfung</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost btn-sm" onclick="openSettings()">⚙ Einstellungen</button>
+      <button class="btn btn-primary btn-sm" onclick="openAddValve()">+ Armatur</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <div class="toolbar-title">Übersicht</div>
+      <div class="filter-group">
+        <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">Alle</button>
+        <button class="filter-btn" data-filter="ok" onclick="setFilter('ok', this)">✓ OK</button>
+        <button class="filter-btn" data-filter="nok" onclick="setFilter('nok', this)">✗ NOK</button>
+        <button class="filter-btn" data-filter="pending" onclick="setFilter('pending', this)">⚡ Offen</button>
+      </div>
+      <div class="search-wrap">
+        <span class="search-icon">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </span>
+        <input type="text" placeholder="Suchen…" id="search-input" oninput="renderCards()" />
+      </div>
+    </div>
+    <div class="cards-grid" id="cards-grid"></div>
+  </main>
+</div>
+
+<!-- ─── SETUP MODAL ─── -->
+<div class="overlay" id="setup-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">⚙ Supabase einrichten</span>
+    </div>
+    <div class="modal-body">
+      <div class="setup-intro">
+        <strong>Schritt 1:</strong> Erstelle ein Projekt auf <strong>supabase.com</strong> und führe die SQL-Migration unten aus.<br><br>
+        <strong>Schritt 2:</strong> Trage die URL und den Anon-Key deines Projekts ein.
+      </div>
+
+      <details style="margin-bottom:16px">
+        <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--amber);margin-bottom:4px">▶ SQL-Migration anzeigen</summary>
+        <div class="sql-block">-- Armaturen-Tabelle
+<span class="sql-keyword">CREATE TABLE</span> armaturen (
+  id          <span class="sql-type">uuid</span> <span class="sql-keyword">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
+  nummer      <span class="sql-type">text</span> <span class="sql-keyword">NOT NULL UNIQUE</span>,
+  ort         <span class="sql-type">text</span> <span class="sql-keyword">NOT NULL</span>,
+  stockwerk   <span class="sql-type">text</span> <span class="sql-keyword">NOT NULL</span>,
+  bezeichnung <span class="sql-type">text</span> <span class="sql-keyword">NOT NULL</span>,
+  created_at  <span class="sql-type">timestamptz</span> <span class="sql-keyword">DEFAULT</span> now()
+);
+
+-- Prüfungen-Tabelle
+<span class="sql-keyword">CREATE TABLE</span> pruefungen (
+  id           <span class="sql-type">uuid</span> <span class="sql-keyword">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
+  armatur_id   <span class="sql-type">uuid</span> <span class="sql-keyword">REFERENCES</span> armaturen(id) <span class="sql-keyword">ON DELETE CASCADE</span>,
+  pruefer      <span class="sql-type">text</span> <span class="sql-keyword">NOT NULL</span>,
+  ist_zustand  <span class="sql-type">text</span> <span class="sql-keyword">NOT NULL</span>, -- 'offen' | 'geschlossen'
+  in_ordnung   <span class="sql-type">boolean</span> <span class="sql-keyword">NOT NULL</span>,
+  notizen      <span class="sql-type">text</span>,
+  unterschrift_url <span class="sql-type">text</span>,
+  bild_url     <span class="sql-type">text</span>,
+  geprueft_am  <span class="sql-type">timestamptz</span> <span class="sql-keyword">DEFAULT</span> now()
+);
+
+-- Storage Bucket für Bilder / Unterschriften
+<span class="sql-keyword">INSERT INTO</span> storage.buckets (id, name, public)
+<span class="sql-keyword">VALUES</span> (<span class="sql-string">'pruefungen'</span>, <span class="sql-string">'pruefungen'</span>, <span class="sql-keyword">true</span>);
+
+-- RLS deaktivieren (für den Anfang)
+<span class="sql-keyword">ALTER TABLE</span> armaturen <span class="sql-keyword">ENABLE ROW LEVEL SECURITY</span>;
+<span class="sql-keyword">ALTER TABLE</span> pruefungen <span class="sql-keyword">ENABLE ROW LEVEL SECURITY</span>;
+<span class="sql-keyword">CREATE POLICY</span> <span class="sql-string">"public all"</span> <span class="sql-keyword">ON</span> armaturen <span class="sql-keyword">FOR ALL USING</span> (true);
+<span class="sql-keyword">CREATE POLICY</span> <span class="sql-string">"public all"</span> <span class="sql-keyword">ON</span> pruefungen <span class="sql-keyword">FOR ALL USING</span> (true);
+<span class="sql-keyword">CREATE POLICY</span> <span class="sql-string">"public upload"</span> <span class="sql-keyword">ON</span> storage.objects
+  <span class="sql-keyword">FOR ALL USING</span> (bucket_id = <span class="sql-string">'pruefungen'</span>);</div>
+      </details>
+
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Supabase URL</label>
+        <input type="url" class="form-control" id="cfg-url" placeholder="https://xxxx.supabase.co" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Anon Key</label>
+        <input type="text" class="form-control" id="cfg-key" placeholder="eyJhbGci..." />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveSettings()">Verbinden</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── ADD VALVE MODAL ─── -->
+<div class="overlay hidden" id="add-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="add-modal-title">Neue Armatur</span>
+      <button class="modal-close" onclick="closeModal('add-overlay')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label">Nummer</label>
+          <div class="nummer-group">
+            <select class="form-control prefix-select" id="av-prefix">
+              <option value="LO">LO</option>
+              <option value="LC">LC</option>
+              <option value="NO">NO</option>
+              <option value="NC">NC</option>
+            </select>
+            <input type="text" class="form-control suffix-input" id="av-suffix" placeholder="001" maxlength="10" />
+          </div>
+          <div style="font-size:11.5px;color:var(--muted);margin-top:4px">
+            LO = Locked Open · LC = Locked Closed · NO = Normally Open · NC = Normally Closed
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ort</label>
+          <input type="text" class="form-control" id="av-ort" placeholder="z. B. Keller Nord" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stockwerk</label>
+          <input type="text" class="form-control" id="av-stockwerk" placeholder="z. B. UG, EG, 1.OG" />
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Bezeichnung</label>
+          <input type="text" class="form-control" id="av-bezeichnung" placeholder="z. B. Hauptabsperrhahn Heizung" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="av-delete-btn" style="display:none;margin-right:auto" onclick="deleteValve()">🗑 Löschen</button>
+      <button class="btn btn-ghost" onclick="closeModal('add-overlay')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveValve()" id="av-save-btn">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── DETAIL / INSPECT MODAL ─── -->
+<div class="overlay hidden" id="detail-overlay">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <span class="modal-title" id="detail-modal-title">Armatur</span>
+      <button class="modal-close" onclick="closeModal('detail-overlay')">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- Valve info -->
+      <div class="detail-grid" id="detail-info-grid"></div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('inspect')">🔍 Prüfen</button>
+        <button class="tab-btn" onclick="switchTab('history')">📋 Verlauf</button>
+      </div>
+
+      <!-- Inspection tab -->
+      <div class="tab-content active" id="tab-inspect">
+        <div id="inspect-result-banner"></div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Prüfer</label>
+            <input type="text" class="form-control" id="ins-pruefer" placeholder="Name eingeben" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Ist-Zustand</label>
+            <select class="form-control" id="ins-zustand" onchange="checkState()">
+              <option value="">— bitte wählen —</option>
+              <option value="offen">Offen (geöffnet)</option>
+              <option value="geschlossen">Geschlossen (gesperrt)</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Notizen (optional)</label>
+            <textarea class="form-control" id="ins-notizen" placeholder="Auffälligkeiten, Bemerkungen…"></textarea>
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Digitale Unterschrift</label>
+            <div class="sig-wrap">
+              <canvas id="sig-canvas" height="120"></canvas>
+              <span class="sig-label-float" id="sig-hint">Hier unterschreiben →</span>
+            </div>
+            <div class="sig-actions">
+              <button class="btn btn-ghost btn-sm" onclick="clearSig()">✕ Löschen</button>
+            </div>
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Foto (optional)</label>
+            <input type="file" class="form-control" id="ins-photo" accept="image/*" capture="environment" onchange="previewPhoto()" style="padding:6px" />
+            <div class="photo-preview-wrap">
+              <img id="photo-preview-img" class="photo-preview" alt="Vorschau" />
+              <button class="photo-remove" id="photo-remove-btn" onclick="removePhoto()">×</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- History tab -->
+      <div class="tab-content" id="tab-history">
+        <div class="history-list" id="history-list">
+          <p style="color:var(--muted);text-align:center;padding:30px">Lade Verlauf…</p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" id="inspect-footer">
+      <button class="btn btn-ghost btn-sm" onclick="openEditValve()">✏ Bearbeiten</button>
+      <button class="btn btn-ghost" onclick="closeModal('detail-overlay')">Schließen</button>
+      <button class="btn btn-primary" onclick="submitInspection()" id="ins-submit-btn">Prüfung speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── IMAGE LIGHTBOX ─── -->
+<div class="overlay hidden" id="lightbox-overlay" onclick="closeModal('lightbox-overlay')">
+  <img id="lightbox-img" style="max-width:90vw;max-height:90vh;border-radius:12px;object-fit:contain" />
+</div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────
+let sbClient = null;
+let armaturen = [];
+let pruefungenLatest = {}; // armatur_id → latest pruefung
+let currentArmatur = null;
+let activeFilter = 'all';
+let editMode = false;
+
+// ─── INIT ──────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  const url = localStorage.getItem('sb_url');
+  const key = localStorage.getItem('sb_key');
+  if (url && key) {
+    initSupabase(url, key);
+  } else {
+    document.getElementById('setup-overlay').classList.remove('hidden');
+  }
+  initSigPad();
+});
+
+function initSupabase(url, key) {
+  sbClient = window.supabase.createClient(url, key);
+  loadData();
+}
+
+// ─── SETTINGS ──────────────────────────────────────────────────────────────
+function saveSettings() {
+  const url = document.getElementById('cfg-url').value.trim();
+  const key = document.getElementById('cfg-key').value.trim();
+  if (!url || !key) return toast('Bitte URL und Key eingeben', 'err');
+  localStorage.setItem('sb_url', url);
+  localStorage.setItem('sb_key', key);
+  initSupabase(url, key);
+  closeModal('setup-overlay');
+}
+
+function openSettings() {
+  document.getElementById('cfg-url').value = localStorage.getItem('sb_url') || '';
+  document.getElementById('cfg-key').value = localStorage.getItem('sb_key') || '';
+  document.getElementById('setup-overlay').classList.remove('hidden');
+}
+
+// ─── DATA ───────────────────────────────────────────────────────────────────
+async function loadData() {
+  showLoader();
+  try {
+    const [{ data: av, error: e1 }, { data: pv, error: e2 }] = await Promise.all([
+      sbClient.from('armaturen').select('*').order('nummer'),
+      sbClient.from('pruefungen').select('*').order('geprueft_am', { ascending: false })
+    ]);
+    if (e1) throw e1;
+    if (e2) throw e2;
+    armaturen = av || [];
+    // Keep only the latest pruefung per armatur
+    pruefungenLatest = {};
+    for (const p of (pv || [])) {
+      if (!pruefungenLatest[p.armatur_id]) pruefungenLatest[p.armatur_id] = p;
+    }
+    renderCards();
+  } catch(err) {
+    toast('Fehler beim Laden: ' + err.message, 'err');
+  }
+  hideLoader();
+}
+
+// ─── RENDER CARDS ──────────────────────────────────────────────────────────
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCards();
+}
+
+function getCardStatus(a) {
+  const p = pruefungenLatest[a.id];
+  if (!p) return 'none';
+  return p.in_ordnung ? 'ok' : 'nok';
+}
+
+function getSollZustand(nummer) {
+  const prefix = nummer.slice(0, 2).toUpperCase();
+  return (prefix === 'LO' || prefix === 'NO') ? 'offen' : 'geschlossen';
+}
+
+function renderCards() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const grid = document.getElementById('cards-grid');
+  let list = armaturen;
+
+  // filter
+  if (activeFilter !== 'all') {
+    list = list.filter(a => {
+      const s = getCardStatus(a);
+      if (activeFilter === 'ok') return s === 'ok';
+      if (activeFilter === 'nok') return s === 'nok';
+      if (activeFilter === 'pending') return s === 'none';
+      return true;
+    });
+  }
+  // search
+  if (q) {
+    list = list.filter(a =>
+      a.nummer.toLowerCase().includes(q) ||
+      a.ort.toLowerCase().includes(q) ||
+      a.bezeichnung.toLowerCase().includes(q) ||
+      a.stockwerk.toLowerCase().includes(q)
+    );
+  }
+
+  if (!list.length) {
+    grid.innerHTML = `<div class="empty-state">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      <h3>${armaturen.length === 0 ? 'Noch keine Armaturen' : 'Keine Ergebnisse'}</h3>
+      <p style="font-size:13px">${armaturen.length === 0 ? 'Lege mit „+ Armatur" die erste an.' : 'Filter oder Suche anpassen.'}</p>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map(a => {
+    const p = pruefungenLatest[a.id];
+    const status = getCardStatus(a);
+    const soll = getSollZustand(a.nummer);
+    const prefix = a.nummer.slice(0, 2).toUpperCase();
+    const statusClass = status === 'ok' ? 'status-ok' : status === 'nok' ? 'status-nok' : 'status-pending';
+    const badgeClass = status === 'ok' ? 'badge-ok' : status === 'nok' ? 'badge-nok' : 'badge-none';
+    const badgeText = status === 'ok' ? '✓ In Ordnung' : status === 'nok' ? '✗ NOK' : '— Ungeprüft';
+    const sollClass = soll === 'offen' ? 'soll-offen' : 'soll-geschlossen';
+    const sollIcon = soll === 'offen' ? '↕' : '∅';
+
+    return `<div class="valve-card ${statusClass}" onclick="openDetail('${a.id}')">
+      <div class="card-header">
+        <div class="valve-nummer tag-${prefix}">${a.nummer}</div>
+        <span class="status-badge ${badgeClass}">${badgeText}</span>
+      </div>
+      <div class="card-bezeichnung">${esc(a.bezeichnung)}</div>
+      <div class="card-meta">
+        <div class="card-meta-row">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          ${esc(a.ort)}
+        </div>
+        <div class="card-meta-row">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          ${esc(a.stockwerk)}
+          &nbsp;·&nbsp;
+          <span class="soll-indicator ${sollClass}">${sollIcon} Soll: ${soll}</span>
+        </div>
+      </div>
+      ${p ? `<div class="card-footer">
+        <span class="card-pruefer">👤 ${esc(p.pruefer)}</span>
+        <span class="card-time">${fmtDate(p.geprueft_am)}</span>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ─── DETAIL MODAL ──────────────────────────────────────────────────────────
+async function openDetail(id) {
+  currentArmatur = armaturen.find(a => a.id === id);
+  if (!currentArmatur) return;
+
+  const a = currentArmatur;
+  const prefix = a.nummer.slice(0, 2).toUpperCase();
+  document.getElementById('detail-modal-title').innerHTML =
+    `<span class="tag-${prefix}" style="font-family:'JetBrains Mono',monospace">${a.nummer}</span> &nbsp; ${esc(a.bezeichnung)}`;
+
+  // Info grid
+  const soll = getSollZustand(a.nummer);
+  document.getElementById('detail-info-grid').innerHTML = `
+    <div class="detail-item"><div class="detail-label">Nummer</div><div class="detail-value mono tag-${prefix}">${a.nummer}</div></div>
+    <div class="detail-item"><div class="detail-label">Soll-Zustand</div><div class="detail-value"><span class="soll-indicator ${soll==='offen'?'soll-offen':'soll-geschlossen'}">${soll==='offen'?'↕ Offen':'∅ Geschlossen'}</span></div></div>
+    <div class="detail-item"><div class="detail-label">Ort</div><div class="detail-value">${esc(a.ort)}</div></div>
+    <div class="detail-item"><div class="detail-label">Stockwerk</div><div class="detail-value">${esc(a.stockwerk)}</div></div>
+    <div class="detail-item full" style="grid-column:1/-1"><div class="detail-label">Bezeichnung</div><div class="detail-value">${esc(a.bezeichnung)}</div></div>
+  `;
+
+  // Reset inspect form
+  document.getElementById('ins-pruefer').value = localStorage.getItem('last_pruefer') || '';
+  document.getElementById('ins-zustand').value = '';
+  document.getElementById('ins-notizen').value = '';
+  document.getElementById('inspect-result-banner').innerHTML = '';
+  clearSig();
+  removePhoto();
+
+  switchTab('inspect');
+  document.getElementById('detail-overlay').classList.remove('hidden');
+  loadHistory(id);
+}
+
+async function loadHistory(armaturId) {
+  const { data, error } = await sbClient
+    .from('pruefungen')
+    .select('*')
+    .eq('armatur_id', armaturId)
+    .order('geprueft_am', { ascending: false })
+    .limit(20);
+
+  const list = document.getElementById('history-list');
+  if (error || !data?.length) {
+    list.innerHTML = '<p style="color:var(--muted);text-align:center;padding:30px">Noch keine Prüfungen vorhanden.</p>';
+    return;
+  }
+  list.innerHTML = data.map(p => `
+    <div class="history-item">
+      <div class="hist-dot ${p.in_ordnung ? 'hist-ok' : 'hist-nok'}"></div>
+      <div class="hist-info">
+        <div class="hist-pruefer">👤 ${esc(p.pruefer)}</div>
+        <div class="hist-time">${fmtDateLong(p.geprueft_am)}</div>
+        <div class="hist-detail">
+          Ist: <strong>${p.ist_zustand}</strong> — 
+          <span style="color:${p.in_ordnung?'var(--green)':'var(--red)'};font-weight:600">
+            ${p.in_ordnung ? '✓ In Ordnung' : '✗ NOK'}
+          </span>
+          ${p.notizen ? `<br><em style="color:var(--muted)">${esc(p.notizen)}</em>` : ''}
+        </div>
+      </div>
+      ${p.unterschrift_url ? `<img class="hist-sig" src="${p.unterschrift_url}" alt="Unterschrift" onclick="lightbox('${p.unterschrift_url}')" />` : ''}
+      ${p.bild_url ? `<img class="hist-photo" src="${p.bild_url}" alt="Foto" onclick="lightbox('${p.bild_url}')" />` : ''}
+    </div>
+  `).join('');
+}
+
+// ─── INSPECTION SUBMIT ──────────────────────────────────────────────────────
+function checkState() {
+  const zustand = document.getElementById('ins-zustand').value;
+  if (!zustand || !currentArmatur) {
+    document.getElementById('inspect-result-banner').innerHTML = '';
+    return;
+  }
+  const soll = getSollZustand(currentArmatur.nummer);
+  const ok = zustand === soll;
+  document.getElementById('inspect-result-banner').innerHTML = `
+    <div class="result-banner ${ok ? 'result-ok' : 'result-nok'}">
+      <span class="result-icon">${ok ? '✅' : '❌'}</span>
+      <div>
+        <div>${ok ? 'Zustand entspricht dem Soll' : 'Zustand weicht vom Soll ab!'}</div>
+        <div style="font-size:12px;opacity:.8">Soll: <strong>${soll}</strong> &nbsp;|&nbsp; Ist: <strong>${zustand}</strong></div>
+      </div>
+    </div>
+  `;
+}
+
+async function submitInspection() {
+  const pruefer = document.getElementById('ins-pruefer').value.trim();
+  const zustand = document.getElementById('ins-zustand').value;
+  const notizen = document.getElementById('ins-notizen').value.trim();
+
+  if (!pruefer) return toast('Bitte Prüfer eingeben', 'err');
+  if (!zustand) return toast('Bitte Ist-Zustand wählen', 'err');
+  if (sigIsEmpty()) return toast('Bitte digital unterschreiben', 'err');
+
+  localStorage.setItem('last_pruefer', pruefer);
+  showLoader();
+
+  try {
+    const soll = getSollZustand(currentArmatur.nummer);
+    const in_ordnung = zustand === soll;
+
+    // Upload signature
+    const sigBlob = await canvasToBlob();
+    const sigPath = `sig_${currentArmatur.id}_${Date.now()}.png`;
+    const { error: sigErr } = await sbClient.storage.from('pruefungen').upload(sigPath, sigBlob, { contentType: 'image/png' });
+    if (sigErr) throw sigErr;
+    const { data: sigUrl } = sbClient.storage.from('pruefungen').getPublicUrl(sigPath);
+
+    // Upload photo if present
+    let bildUrl = null;
+    const photoFile = document.getElementById('ins-photo').files[0];
+    if (photoFile) {
+      const ext = photoFile.name.split('.').pop();
+      const photoPath = `photo_${currentArmatur.id}_${Date.now()}.${ext}`;
+      const { error: photoErr } = await sbClient.storage.from('pruefungen').upload(photoPath, photoFile);
+      if (photoErr) throw photoErr;
+      const { data: pUrl } = sbClient.storage.from('pruefungen').getPublicUrl(photoPath);
+      bildUrl = pUrl.publicUrl;
+    }
+
+    // Insert pruefung
+    const { error: insErr } = await sbClient.from('pruefungen').insert({
+      armatur_id:     currentArmatur.id,
+      pruefer,
+      ist_zustand:    zustand,
+      in_ordnung,
+      notizen:        notizen || null,
+      unterschrift_url: sigUrl.publicUrl,
+      bild_url:       bildUrl,
+    });
+    if (insErr) throw insErr;
+
+    toast(in_ordnung ? '✓ Prüfung gespeichert – In Ordnung' : '⚠ Prüfung gespeichert – NOK!', in_ordnung ? 'ok' : 'err');
+    closeModal('detail-overlay');
+    await loadData();
+  } catch(err) {
+    toast('Fehler: ' + err.message, 'err');
+  }
+  hideLoader();
+}
+
+// ─── ADD / EDIT VALVE ──────────────────────────────────────────────────────
+function openAddValve() {
+  editMode = false;
+  document.getElementById('add-modal-title').textContent = 'Neue Armatur';
+  document.getElementById('av-prefix').value = 'LO';
+  document.getElementById('av-suffix').value = '';
+  document.getElementById('av-ort').value = '';
+  document.getElementById('av-stockwerk').value = '';
+  document.getElementById('av-bezeichnung').value = '';
+  document.getElementById('av-delete-btn').style.display = 'none';
+  document.getElementById('add-overlay').classList.remove('hidden');
+}
+
+function openEditValve() {
+  if (!currentArmatur) return;
+  editMode = true;
+  const a = currentArmatur;
+  const prefix = a.nummer.slice(0, 2).toUpperCase();
+  const suffix = a.nummer.slice(2);
+  document.getElementById('add-modal-title').textContent = 'Armatur bearbeiten';
+  document.getElementById('av-prefix').value = prefix;
+  document.getElementById('av-suffix').value = suffix;
+  document.getElementById('av-ort').value = a.ort;
+  document.getElementById('av-stockwerk').value = a.stockwerk;
+  document.getElementById('av-bezeichnung').value = a.bezeichnung;
+  document.getElementById('av-delete-btn').style.display = 'inline-flex';
+  closeModal('detail-overlay');
+  document.getElementById('add-overlay').classList.remove('hidden');
+}
+
+async function saveValve() {
+  const prefix = document.getElementById('av-prefix').value;
+  const suffix = document.getElementById('av-suffix').value.trim().replace(/\s/g, '');
+  const ort = document.getElementById('av-ort').value.trim();
+  const stockwerk = document.getElementById('av-stockwerk').value.trim();
+  const bezeichnung = document.getElementById('av-bezeichnung').value.trim();
+
+  if (!suffix) return toast('Bitte Nummer eingeben', 'err');
+  if (!ort) return toast('Bitte Ort eingeben', 'err');
+  if (!stockwerk) return toast('Bitte Stockwerk eingeben', 'err');
+  if (!bezeichnung) return toast('Bitte Bezeichnung eingeben', 'err');
+
+  const nummer = prefix + suffix;
+  showLoader();
+
+  try {
+    if (editMode && currentArmatur) {
+      const { error } = await sbClient.from('armaturen').update({ nummer, ort, stockwerk, bezeichnung }).eq('id', currentArmatur.id);
+      if (error) throw error;
+      toast('Armatur aktualisiert', 'ok');
+    } else {
+      const { error } = await sbClient.from('armaturen').insert({ nummer, ort, stockwerk, bezeichnung });
+      if (error) throw error;
+      toast('Armatur angelegt', 'ok');
+    }
+    closeModal('add-overlay');
+    await loadData();
+  } catch(err) {
+    toast('Fehler: ' + err.message, 'err');
+  }
+  hideLoader();
+}
+
+async function deleteValve() {
+  if (!currentArmatur) return;
+  if (!confirm(`Armatur ${currentArmatur.nummer} wirklich löschen? Alle Prüfungen werden ebenfalls gelöscht.`)) return;
+  showLoader();
+  const { error } = await sbClient.from('armaturen').delete().eq('id', currentArmatur.id);
+  if (error) { toast('Fehler: ' + error.message, 'err'); hideLoader(); return; }
+  toast('Armatur gelöscht', 'ok');
+  closeModal('add-overlay');
+  currentArmatur = null;
+  await loadData();
+  hideLoader();
+}
+
+// ─── SIGNATURE PAD ─────────────────────────────────────────────────────────
+let sigCtx, sigDrawing = false, sigHasMark = false;
+
+function initSigPad() {
+  const canvas = document.getElementById('sig-canvas');
+  const dpr = window.devicePixelRatio || 1;
+  function resize() {
+    const w = canvas.offsetWidth;
+    canvas.width = w * dpr;
+    canvas.height = 120 * dpr;
+    sigCtx = canvas.getContext('2d');
+    sigCtx.scale(dpr, dpr);
+    sigCtx.strokeStyle = '#1E293B';
+    sigCtx.lineWidth = 2.5;
+    sigCtx.lineCap = 'round';
+    sigCtx.lineJoin = 'round';
+  }
+  resize();
+
+  function getPos(e) {
+    const r = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - r.left), y: (src.clientY - r.top) };
+  }
+  function start(e) { e.preventDefault(); sigDrawing = true; const p = getPos(e); sigCtx.beginPath(); sigCtx.moveTo(p.x, p.y); }
+  function move(e)  { e.preventDefault(); if (!sigDrawing) return; sigHasMark = true; document.getElementById('sig-hint').style.display = 'none'; const p = getPos(e); sigCtx.lineTo(p.x, p.y); sigCtx.stroke(); }
+  function end(e)   { e.preventDefault(); sigDrawing = false; }
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  canvas.addEventListener('mouseup', end);
+  canvas.addEventListener('touchstart', start, { passive: false });
+  canvas.addEventListener('touchmove', move, { passive: false });
+  canvas.addEventListener('touchend', end, { passive: false });
+}
+
+function clearSig() {
+  if (!sigCtx) return;
+  const canvas = document.getElementById('sig-canvas');
+  sigCtx.clearRect(0, 0, canvas.width, canvas.height);
+  sigHasMark = false;
+  document.getElementById('sig-hint').style.display = '';
+}
+
+function sigIsEmpty() { return !sigHasMark; }
+
+function canvasToBlob() {
+  return new Promise(res => {
+    document.getElementById('sig-canvas').toBlob(res, 'image/png');
+  });
+}
+
+// ─── PHOTO ──────────────────────────────────────────────────────────────────
+function previewPhoto() {
+  const file = document.getElementById('ins-photo').files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('photo-preview-img');
+    img.src = e.target.result;
+    img.classList.add('visible');
+    document.getElementById('photo-remove-btn').classList.add('visible');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePhoto() {
+  document.getElementById('ins-photo').value = '';
+  document.getElementById('photo-preview-img').classList.remove('visible');
+  document.getElementById('photo-remove-btn').classList.remove('visible');
+}
+
+// ─── TABS ───────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.getAttribute('onclick').includes(`'${name}'`)));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${name}`));
+  document.getElementById('inspect-footer').style.display = name === 'inspect' ? 'flex' : 'none';
+}
+
+// ─── UTILS ──────────────────────────────────────────────────────────────────
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+function lightbox(url) {
+  document.getElementById('lightbox-img').src = url;
+  document.getElementById('lightbox-overlay').classList.remove('hidden');
+}
+
+function showLoader() { document.getElementById('loader').classList.remove('hidden'); }
+function hideLoader() { document.getElementById('loader').classList.add('hidden'); }
+
+function toast(msg, type = 'ok') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.innerHTML = `<span>${type === 'ok' ? '✓' : '⚠'}</span> ${esc(msg)}`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return d.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'2-digit' })
+    + ' ' + d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+}
+
+function fmtDateLong(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
+}
+</script>
+</body>
+</html>
